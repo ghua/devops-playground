@@ -58,17 +58,18 @@ resource "kubernetes_persistent_volume" "wordpress_mysql_pv" {
   }
 }
 
-resource "aws_efs_file_system" "wordpress_mysql_efs" {
+
+resource "aws_efs_file_system" "wordpress_efs" {
   availability_zone_name = var.availability_zones[0]
 }
 
-resource "aws_efs_access_point" "wordpress_mysql_efs_ap" {
+resource "aws_efs_access_point" "wordpress_efs_ap" {
   file_system_id = aws_efs_file_system.wordpress_mysql_efs.id
 }
 
-resource "kubernetes_persistent_volume" "wordpress_mysql_pv" {
+resource "kubernetes_persistent_volume" "wordpress_pv" {
   metadata {
-    name = "wordpress-mysql"
+    name = "wordpress"
   }
   spec {
     capacity = {
@@ -80,7 +81,7 @@ resource "kubernetes_persistent_volume" "wordpress_mysql_pv" {
     persistent_volume_source {
       csi {
         driver = "efs.csi.aws.com"
-        volume_handle = aws_efs_access_point.wordpress_mysql_efs_ap.id
+        volume_handle = aws_efs_access_point.wordpress_efs_ap.id
       }
     }
   }
