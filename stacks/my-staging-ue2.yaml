@@ -14,6 +14,9 @@ vars:
   desired_size: 2
   max_size: 3
   min_size: 2
+  remote_state_bucket_id: gh-infra-as-code-state
+  remote_state_bucket_region: us-east-2
+  remote_state_bucket_key: terraform.tfstate
 terraform:
   backend_type: s3
   backend:
@@ -31,3 +34,7 @@ components:
       backend:
         s3:
           workspace_key_prefix: eks
+    wp:
+      backend:
+        s3:
+          workspace_key_prefix: wp
