@@ -1,0 +1,6 @@
+workflows:
+  eks-up:
+    description: |
+      Bring up the EKS cluster.
+    steps:
+      - command: terraform apply components/terraform/eks -auto-approve
