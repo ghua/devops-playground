@@ -13,6 +13,11 @@ output "vpc_cidr" {
   description = "VPC ID"
 }
 
+output "private_subnet_ids" {
+  value       = module.subnets.private_subnet_ids
+  description = "Private subnets"
+}
+
 output "eks_cluster_id" {
   description = "The name of the cluster"
   value       = module.eks_cluster.eks_cluster_id

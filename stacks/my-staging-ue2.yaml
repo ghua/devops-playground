@@ -38,3 +38,7 @@ components:
       backend:
         s3:
           workspace_key_prefix: wp
+      settings:
+        depends_on:
+          1:
+            component: eks

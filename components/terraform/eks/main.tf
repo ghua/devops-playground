@@ -1,7 +1,3 @@
-provider "aws" {
-  region = var.region
-}
-
 module "label" {
   source  = "cloudposse/label/null"
   version = "0.25.0"
@@ -11,14 +7,14 @@ module "label" {
   context = module.this.context
 }
 
-data "aws_caller_identity" "current" {}
-
-data "aws_iam_session_context" "current" {
-  arn = data.aws_caller_identity.current.arn
-}
-
 locals {
   enabled = module.this.enabled
+
+  system_namespace                = "kube-system"
+  controller_service_account_name = "efs-csi-controller-sa"
+  node_service_account_name       = "efs-csi-node-sa"
+  eks_cluster_oidc_issuer_url     = data.aws_eks_cluster.my-staging-ue2.identity[0].oidc[0].issuer
+  efs_csi_driver_role_name                       = "${module.eks_cluster.eks_cluster_id}_AmazonEKS_EFS_CSI_DriverRole"
 
   private_ipv6_enabled = var.private_ipv6_enabled
 
@@ -58,8 +54,14 @@ locals {
     service_account_role_arn = one(module.vpc_cni_eks_iam_role[*].service_account_role_arn)
   }
 
+  eks_addon = {
+    addon_name              = "aws-efs-csi-driver"
+    service_account_role_arn = data.aws_iam_role.driver_role.arn
+  }
+
   addons = concat([
-    local.vpc_cni_addon
+    local.vpc_cni_addon,
+    local.eks_addon
   ], var.addons)
 }
 
@@ -111,7 +113,10 @@ module "eks_cluster" {
   cluster_encryption_config_resources                       = var.cluster_encryption_config_resources
 
   addons            = local.addons
-  addons_depends_on = [module.eks_node_group]
+  addons_depends_on = [
+    module.eks_node_group,
+    module.efs_csi_role
+  ]
 
   access_entry_map = local.access_entry_map
   access_config = {
@@ -128,7 +133,17 @@ module "eks_cluster" {
 
   context = module.this.context
 
-  cluster_depends_on = [module.subnets]
+  cluster_depends_on = [
+    module.subnets
+  ]
+}
+
+resource "aws_vpc_security_group_ingress_rule" "efs" {
+  security_group_id = module.vpc.vpc_default_security_group_id
+
+  cidr_ipv4 = module.vpc.vpc_cidr_block
+  ip_protocol = "-1"
+  to_port     = "2049"
 }
 
 module "eks_node_group" {
@@ -144,4 +159,47 @@ module "eks_node_group" {
   kubernetes_labels = var.kubernetes_labels
 
   context = module.this.context
+}
+
+module "efs_csi_role" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.39"
+
+  create_role = true
+  role_name   = local.efs_csi_driver_role_name
+
+  role_policy_arns = {
+    "AmazonEKS_CSI_EFS_Policy" = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+  }
+
+  oidc_providers = {
+    external_dns = {
+      provider_arn = data.aws_iam_openid_connect_provider.eks_cluster_oidc.arn,
+      namespace_service_accounts = [
+        "${local.system_namespace}:${local.controller_service_account_name}",
+        "${local.system_namespace}:${local.node_service_account_name}"
+      ]
+    }
+  }
+}
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_session_context" "current" {
+  arn = data.aws_caller_identity.current.arn
+}
+
+data "aws_eks_cluster" "my-staging-ue2" {
+  name = module.eks_cluster.eks_cluster_id
+}
+
+data "aws_iam_openid_connect_provider" "eks_cluster_oidc" {
+  url = local.eks_cluster_oidc_issuer_url
+}
+
+data "aws_iam_role" "driver_role" {
+  name = local.efs_csi_driver_role_name
+  depends_on = [
+    module.efs_csi_role
+  ]
 }
