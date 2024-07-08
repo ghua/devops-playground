@@ -142,7 +142,8 @@ resource "aws_vpc_security_group_ingress_rule" "efs" {
   security_group_id = module.vpc.vpc_default_security_group_id
 
   cidr_ipv4 = module.vpc.vpc_cidr_block
-  ip_protocol = "-1"
+  ip_protocol = "tcp"
+  from_port = "2049"
   to_port     = "2049"
 }
 
