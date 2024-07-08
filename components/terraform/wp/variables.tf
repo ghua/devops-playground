@@ -19,11 +19,6 @@ variable "mysql_version" {
   default = "8.0"
 }
 
-variable "mysql_password" {
-  type        = string
-  description = "MySQL root password"
-}
-
 variable "region" {
   type        = string
   description = "AWS Region"
@@ -32,4 +27,16 @@ variable "region" {
 variable "availability_zones" {
   type        = list(string)
   description = "List of availability zones"
+}
+
+variable "wordpress_version" {
+  type        = string
+  description = "Wordpress PHP-FPM version"
+  default = "6.5.5-php8.1-fpm"
+}
+
+variable "nginx_version" {
+  type        = string
+  description = "Wordpress NGINX version"
+  default = "1.27"
 }

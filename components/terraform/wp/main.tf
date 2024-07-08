@@ -77,7 +77,7 @@ resource "kubernetes_persistent_volume" "wordpress_pv" {
     capacity = {
       storage = "2Gi"
     }
-    access_modes = ["ReadWriteOnce"]
+    access_modes = ["ReadWriteMany"]
     persistent_volume_reclaim_policy = "Delete"
     storage_class_name = "gp3"
     persistent_volume_source {
@@ -88,6 +88,219 @@ resource "kubernetes_persistent_volume" "wordpress_pv" {
     }
   }
 }
+
+resource "kubernetes_persistent_volume_claim" "wordpress_pvc" {
+  metadata {
+    name = "wordpress-php-fpm"
+    labels = {
+      app = "wordpress"
+    }
+  }
+  spec {
+    access_modes = ["ReadWriteMany"]
+    resources {
+      requests = {
+        storage = "2Gi"
+      }
+    }
+    volume_name = kubernetes_persistent_volume.wordpress_pv.metadata[0].name
+    storage_class_name = "gp3"
+  }
+}
+
+## WP PHP-FPM
+resource "kubernetes_service" "wordpress-php-fpm" {
+  metadata {
+    name = "wordpress-php-fpm"
+    labels = {
+      app = "wordpress"
+    }
+  }
+  spec {
+    port {
+      port        = 9000
+      target_port = 9000
+    }
+    selector = {
+      app  = "wordpress"
+      tier = "php-fpm"
+    }
+    cluster_ip = "None"
+  }
+}
+
+resource "kubernetes_deployment" "wordpress-php-fpm" {
+  metadata {
+    name = "wordpress-php-fpm"
+    labels = {
+      app = "wordpress"
+      tier = "php-fpm"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app  = "wordpress"
+        tier = "php-fpm"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app  = "wordpress"
+          tier = "php-fpm"
+        }
+      }
+
+      spec {
+        container {
+          image = "wordpress:${var.wordpress_version}"
+          name  = "php-fpm"
+
+          env {
+            name = "WORDPRESS_DB_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.mysql.metadata[0].name
+                key  = "wp-password"
+              }
+            }
+          }
+          env {
+            name = "WORDPRESS_DB_USER"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.mysql.metadata[0].name
+                key  = "wp-user"
+              }
+            }
+          }
+          env {
+            name = "WORDPRESS_DB_NAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.mysql.metadata[0].name
+                key  = "wp-db-name"
+              }
+            }
+          }
+
+          port {
+            container_port = 9000
+            name           = "php-fpm"
+          }
+
+          volume_mount {
+            name       = "wordpress-persistent-storage"
+            mount_path = "/var/www/html"
+          }
+        }
+
+        volume {
+          name = "wordpress-persistent-storage"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim.mysql.metadata[0].name
+          }
+        }
+      }
+    }
+  }
+}
+
+## WP NGINX
+resource "kubernetes_config_map" "wp-vhost-config" {
+  metadata {
+    name = "wordpress-nginx-vhost-config"
+  }
+
+  data = {
+    "wp-vhost.conf" = "${file("${path.module}/wp-vhost.conf")}"
+  }
+}
+
+resource "kubernetes_service" "wordpress-nginx" {
+  metadata {
+    name = "wordpress-nginx"
+    labels = {
+      app = "wordpress"
+    }
+  }
+  spec {
+    port {
+      port        = 8080
+      target_port = 8080
+    }
+    selector = {
+      app  = "wordpress"
+      tier = "nginx"
+    }
+    cluster_ip = "None"
+  }
+}
+
+resource "kubernetes_deployment" "wordpress-nginx" {
+  metadata {
+    name = "wordpress-nginx"
+    labels = {
+      app = "wordpress"
+      tier = "nginx"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app  = "wordpress"
+        tier = "nginx"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app  = "wordpress"
+          tier = "nginx"
+        }
+      }
+
+      spec {
+        container {
+          image = "nginx:${var.nginx_version}"
+          name  = "nginx"
+
+          port {
+            container_port = 8080
+            name           = "http"
+          }
+
+          volume_mount {
+            name       = "wordpress-persistent-storage"
+            mount_path = "/var/www/html"
+          }
+          volume_mount {
+            name       = "wordpress-nginx-vhost-config"
+            mount_path = "/etc/nginx/conf.d/default.conf"
+            sub_path   = "wp-vhost.conf"
+          }
+        }
+
+        volume {
+          name = "wordpress-persistent-storage"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim.mysql.metadata[0].name
+          }
+        }
+        volume {
+          name = "wordpress-nginx-vhost-config"
+          config_map {
+            name = "wordpress-nginx-vhost-config"
+          }
+        }
+      }
+    }
+  }
+}
+
 
 ### MySQL
 resource "kubernetes_service" "mysql" {
@@ -129,13 +342,28 @@ resource "kubernetes_persistent_volume_claim" "mysql" {
   }
 }
 
+resource "random_password" "mysql-root-password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_password" "mysql-wp-password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 resource "kubernetes_secret" "mysql" {
   metadata {
     name = "mysql-pass"
   }
 
   data = {
-    password = var.mysql_password
+    root-password = random_password.mysql-root-password.result
+    wp-password   = random_password.mysql-wp-password.result
+    wp-user       = "wp"
+    wp-db-name    = "wp"
   }
 }
 
@@ -173,7 +401,34 @@ resource "kubernetes_deployment" "mysql" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.mysql.metadata[0].name
-                key  = "password"
+                key  = "root-password"
+              }
+            }
+          }
+          env {
+            name = "MYSQL_DATABASE"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.mysql.metadata[0].name
+                key  = "wp-db-name"
+              }
+            }
+          }
+          env {
+            name = "MYSQL_USER"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.mysql.metadata[0].name
+                key  = "wp-user"
+              }
+            }
+          }
+          env {
+            name = "MYSQL_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.mysql.metadata[0].name
+                key  = "wp-password"
               }
             }
           }

@@ -9,5 +9,11 @@ output "wordpress_filesystem_id" {
 }
 
 output "mysql_root_password" {
-  value = var.mysql_password
+  value     = random_password.mysql-root-password
+  sensitive = true
+}
+
+output "mysql_wp_password" {
+  value = random_password.mysql-wp-password
+  sensitive = true
 }
