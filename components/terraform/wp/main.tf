@@ -89,7 +89,7 @@ resource "kubernetes_persistent_volume" "wordpress_pv" {
   }
 }
 
-resource "kubernetes_persistent_volume_claim" "wordpress_pvc" {
+resource "kubernetes_persistent_volume_claim" "wordpress" {
   metadata {
     name = "wordpress-php-fpm"
     labels = {
@@ -127,6 +127,15 @@ resource "kubernetes_service" "wordpress-php-fpm" {
     }
     cluster_ip = "None"
   }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "wordpress-php-fpm" {
+  security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
+
+  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  ip_protocol = "tcp"
+  from_port = "9000"
+  to_port     = "9000"
 }
 
 resource "kubernetes_deployment" "wordpress-php-fpm" {
@@ -194,13 +203,14 @@ resource "kubernetes_deployment" "wordpress-php-fpm" {
           volume_mount {
             name       = "wordpress-persistent-storage"
             mount_path = "/var/www/html"
+            sub_path   = "data"
           }
         }
 
         volume {
           name = "wordpress-persistent-storage"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.mysql.metadata[0].name
+            claim_name = kubernetes_persistent_volume_claim.wordpress.metadata[0].name
           }
         }
       }
@@ -237,6 +247,15 @@ resource "kubernetes_service" "wordpress-nginx" {
     }
     cluster_ip = "None"
   }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "wordpress-nginx" {
+  security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
+
+  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  ip_protocol = "tcp"
+  from_port = "8080"
+  to_port     = "8080"
 }
 
 resource "kubernetes_deployment" "wordpress-nginx" {
@@ -323,9 +342,18 @@ resource "kubernetes_service" "mysql" {
   }
 }
 
+resource "aws_vpc_security_group_ingress_rule" "wordpress-mysql" {
+  security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
+
+  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  ip_protocol = "tcp"
+  from_port = "3306"
+  to_port     = "3306"
+}
+
 resource "kubernetes_persistent_volume_claim" "mysql" {
   metadata {
-    name = "mysql-pv-claim"
+    name = "mysql"
     labels = {
       app = "wordpress"
     }
@@ -441,6 +469,7 @@ resource "kubernetes_deployment" "mysql" {
           volume_mount {
             name       = "mysql-persistent-storage"
             mount_path = "/var/lib/mysql"
+            sub_path   = "data"
           }
         }
 

@@ -85,3 +85,8 @@ output "eks_node_group_status" {
   description = "Status of the EKS Node Group"
   value       = module.eks_node_group.eks_node_group_status
 }
+
+output "eks_vpc_default_security_group_id" {
+  value = module.vpc.vpc_default_security_group_id
+  description = "EKS VPS default security group id"
+}
