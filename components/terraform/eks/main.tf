@@ -13,7 +13,6 @@ locals {
   system_namespace                = "kube-system"
   controller_service_account_name = "efs-csi-controller-sa"
   node_service_account_name       = "efs-csi-node-sa"
-  eks_cluster_oidc_issuer_url     = data.aws_eks_cluster.my-staging-ue2.identity[0].oidc[0].issuer
   efs_csi_driver_role_name                       = "${module.eks_cluster.eks_cluster_id}_AmazonEKS_EFS_CSI_DriverRole"
 
   private_ipv6_enabled = var.private_ipv6_enabled
@@ -175,7 +174,7 @@ module "efs_csi_role" {
 
   oidc_providers = {
     external_dns = {
-      provider_arn = data.aws_iam_openid_connect_provider.eks_cluster_oidc.arn,
+      provider_arn = module.eks_cluster.eks_cluster_identity_oidc_issuer_arn,
       namespace_service_accounts = [
         "${local.system_namespace}:${local.controller_service_account_name}",
         "${local.system_namespace}:${local.node_service_account_name}"
@@ -188,14 +187,6 @@ data "aws_caller_identity" "current" {}
 
 data "aws_iam_session_context" "current" {
   arn = data.aws_caller_identity.current.arn
-}
-
-data "aws_eks_cluster" "my-staging-ue2" {
-  name = module.eks_cluster.eks_cluster_id
-}
-
-data "aws_iam_openid_connect_provider" "eks_cluster_oidc" {
-  url = local.eks_cluster_oidc_issuer_url
 }
 
 data "aws_iam_role" "driver_role" {
