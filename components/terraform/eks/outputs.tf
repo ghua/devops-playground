@@ -90,3 +90,17 @@ output "eks_vpc_default_security_group_id" {
   value = module.vpc.vpc_default_security_group_id
   description = "EKS VPS default security group id"
 }
+
+output "eks_vpc_id" {
+  value = module.vpc.vpc_id
+  description = "EKS VPS id"
+}
+
+output "public_subnet_ids" {
+  value = module.subnets.public_subnet_ids
+  description = "EKS public subnets id"
+}
+
+output "eks_cluster_identity_oidc_issuer_arn" {
+  value = module.eks_cluster.eks_cluster_identity_oidc_issuer_arn
+}

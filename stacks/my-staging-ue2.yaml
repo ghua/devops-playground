@@ -34,6 +34,14 @@ components:
       backend:
         s3:
           workspace_key_prefix: eks
+    alb:
+      backend:
+        s3:
+          workspace_key_prefix: alb
+      settings:
+        depends_on:
+          1:
+            component: eks
     wp:
       backend:
         s3:
@@ -42,3 +50,5 @@ components:
         depends_on:
           1:
             component: eks
+          2:
+            component: alb

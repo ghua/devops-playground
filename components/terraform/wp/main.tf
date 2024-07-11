@@ -20,6 +20,19 @@ data "terraform_remote_state" "eks" {
   }
 }
 
+data "terraform_remote_state" "alb" {
+  backend   = "s3"
+  workspace = terraform.workspace
+
+  config = {
+    region               = var.remote_state_bucket_region
+    bucket               = var.remote_state_bucket_id
+    key                  = var.remote_state_bucket_key
+    workspace_key_prefix = "alb"
+  }
+}
+
+
 # K8S
 ## Wordpress Mysql EFS PV
 resource "aws_efs_file_system" "wordpress_mysql_efs" {
@@ -168,6 +181,10 @@ resource "kubernetes_deployment" "wordpress-php-fpm" {
           name  = "php-fpm"
 
           env {
+            name = "WORDPRESS_DB_HOST"
+            value = "wordpress-mysql"
+          }
+          env {
             name = "WORDPRESS_DB_PASSWORD"
             value_from {
               secret_key_ref {
@@ -258,6 +275,15 @@ resource "aws_vpc_security_group_ingress_rule" "wordpress-nginx" {
   to_port     = "8080"
 }
 
+resource "aws_vpc_security_group_egress_rule" "wordpress-nginx" {
+  security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
+
+  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  ip_protocol = "tcp"
+  from_port = "8080"
+  to_port     = "8080"
+}
+
 resource "kubernetes_deployment" "wordpress-nginx" {
   metadata {
     name = "wordpress-nginx"
@@ -295,6 +321,7 @@ resource "kubernetes_deployment" "wordpress-nginx" {
           volume_mount {
             name       = "wordpress-persistent-storage"
             mount_path = "/var/www/html"
+            sub_path = "data"
           }
           volume_mount {
             name       = "wordpress-nginx-vhost-config"
@@ -306,7 +333,7 @@ resource "kubernetes_deployment" "wordpress-nginx" {
         volume {
           name = "wordpress-persistent-storage"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.mysql.metadata[0].name
+            claim_name = kubernetes_persistent_volume_claim.wordpress.metadata[0].name
           }
         }
         volume {
@@ -478,6 +505,45 @@ resource "kubernetes_deployment" "mysql" {
           persistent_volume_claim {
             claim_name = kubernetes_persistent_volume_claim.mysql.metadata[0].name
           }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_ingress_v1" "ingress" {
+  metadata {
+    name = "wordpress"
+    annotations = {
+      "kubernetes.io/ingress.class"           = "alb"
+      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
+      "alb.ingress.kubernetes.io/target-type" = "ip"
+    }
+  }
+
+  spec {
+    default_backend {
+      service {
+        name = "wordpress-nginx"
+        port {
+          number = 8080
+        }
+      }
+    }
+
+    rule {
+      http {
+        path {
+          backend {
+            service {
+              name = "wordpress-nginx"
+              port {
+                number = 8080
+              }
+            }
+          }
+
+          path = "/*"
         }
       }
     }
