@@ -23,41 +23,6 @@ data "terraform_remote_state" "eks" {
   }
 }
 
-module "alb" {
-  source = "cloudposse/alb/aws"
-
-  vpc_id = data.terraform_remote_state.eks.outputs.eks_vpc_id
-  subnet_ids = data.terraform_remote_state.eks.outputs.public_subnet_ids
-  security_group_ids = [data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id]
-
-  http_enabled = true
-  http2_enabled = false
-  access_logs_enabled = false
-  target_group_target_type = "ip"
-  health_check_matcher                = "200-399"
-
-  tags = var.tags
-
-  context = module.this.context
-}
-
-module "alb_ingress" {
-  source = "cloudposse/alb-ingress/aws"
-
-  namespace                           = var.namespace
-  vpc_id                              = data.terraform_remote_state.eks.outputs.eks_vpc_id
-  target_group_arn                    = module.alb.default_target_group_arn
-  unauthenticated_listener_arns       = [module.alb.http_listener_arn]
-  default_target_group_enabled        = false
-  unauthenticated_paths               = ["/"]
-  unauthenticated_priority            = 100
-  health_check_matcher                = "200-399"
-
-  tags = var.tags
-
-  context = module.this.context
-}
-
 module "aws_load_balancer_controller_irsa_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
 
@@ -71,6 +36,37 @@ module "aws_load_balancer_controller_irsa_role" {
       namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
     }
   }
+}
+
+# bug fix for:
+#   Failed deploy model due to AccessDenied: User: arn:aws:sts::768954994656:assumed-role/aws-load-balancer-controller/1721300630144284810
+#   is not authorized to perform: elasticloadbalancing:AddTags on resource: arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+#   because no identity-based policy allows the elasticloadbalancing:AddTags action
+resource "aws_iam_policy" "add_tags_to_elb_policy" {
+  name = "AddTagsToElbPolicyWithNoConditions"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        "Action": [
+          "elasticloadbalancing:RemoveTags",
+          "elasticloadbalancing:AddTags"
+        ],
+        "Effect": "Allow",
+        "Resource": [
+          "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "add_tags_to_elb_policy" {
+  policy_arn = aws_iam_policy.add_tags_to_elb_policy.arn
+  role       = module.aws_load_balancer_controller_irsa_role.iam_role_name
 }
 
 resource "helm_release" "aws_load_balancer_controller" {

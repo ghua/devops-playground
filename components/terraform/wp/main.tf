@@ -511,7 +511,7 @@ resource "kubernetes_deployment" "mysql" {
   }
 }
 
-resource "kubernetes_ingress_v1" "ingress" {
+resource "kubernetes_ingress_v1" "wordpress" {
   metadata {
     name = "wordpress"
     annotations = {

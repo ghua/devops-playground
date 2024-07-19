@@ -52,3 +52,7 @@ components:
             component: eks
           2:
             component: alb
+    argocd-init:
+      backend:
+        s3:
+          workspace_key_prefix: argocd-init
