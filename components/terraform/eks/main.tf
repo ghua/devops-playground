@@ -13,7 +13,7 @@ locals {
   system_namespace                = "kube-system"
   controller_service_account_name = "efs-csi-controller-sa"
   node_service_account_name       = "efs-csi-node-sa"
-  efs_csi_driver_role_name                       = "${module.eks_cluster.eks_cluster_id}_AmazonEKS_EFS_CSI_DriverRole"
+  efs_csi_driver_role_name        = "${module.eks_cluster.eks_cluster_id}_AmazonEKS_EFS_CSI_DriverRole"
 
   private_ipv6_enabled = var.private_ipv6_enabled
 
@@ -54,7 +54,7 @@ locals {
   }
 
   eks_addon = {
-    addon_name              = "aws-efs-csi-driver"
+    addon_name               = "aws-efs-csi-driver"
     service_account_role_arn = data.aws_iam_role.driver_role.arn
   }
 
@@ -111,7 +111,7 @@ module "eks_cluster" {
   cluster_encryption_config_kms_key_policy                  = var.cluster_encryption_config_kms_key_policy
   cluster_encryption_config_resources                       = var.cluster_encryption_config_resources
 
-  addons            = local.addons
+  addons = local.addons
   addons_depends_on = [
     module.eks_node_group,
     module.efs_csi_role
@@ -140,7 +140,7 @@ module "eks_cluster" {
 resource "aws_vpc_security_group_ingress_rule" "efs" {
   security_group_id = module.vpc.vpc_default_security_group_id
 
-  cidr_ipv4 = module.vpc.vpc_cidr_block
+  cidr_ipv4   = module.vpc.vpc_cidr_block
   ip_protocol = "tcp"
   from_port   = "2049"
   to_port     = "2049"

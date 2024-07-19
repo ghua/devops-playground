@@ -56,3 +56,11 @@ components:
       backend:
         s3:
           workspace_key_prefix: argocd-init
+    argocd-apps:
+      backend:
+        s3:
+          workspace_key_prefix: argocd-apps
+      settings:
+        depends_on:
+          1:
+            component: argocd-init

@@ -16,7 +16,7 @@ variable "remote_state_bucket_key" {
 variable "mysql_version" {
   type        = string
   description = "MySQL server version"
-  default = "8.0"
+  default     = "8.0"
 }
 
 variable "region" {
@@ -32,11 +32,11 @@ variable "availability_zones" {
 variable "wordpress_version" {
   type        = string
   description = "Wordpress PHP-FPM version"
-  default = "6.5.5-php8.1-fpm"
+  default     = "6.5.5-php8.1-fpm"
 }
 
 variable "nginx_version" {
   type        = string
   description = "Wordpress NGINX version"
-  default = "1.27"
+  default     = "1.27"
 }

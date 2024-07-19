@@ -43,7 +43,7 @@ resource "aws_efs_access_point" "wordpress_mysql_efs_ap" {
 }
 
 resource "aws_efs_mount_target" "wordpress_mysql_efs_target" {
-  count = length(data.terraform_remote_state.eks.outputs.private_subnet_ids)
+  count          = length(data.terraform_remote_state.eks.outputs.private_subnet_ids)
   file_system_id = aws_efs_file_system.wordpress_mysql_efs.id
   subnet_id      = data.terraform_remote_state.eks.outputs.private_subnet_ids[count.index]
 }
@@ -56,12 +56,12 @@ resource "kubernetes_persistent_volume" "wordpress_mysql_pv" {
     capacity = {
       storage = "2Gi"
     }
-    access_modes = ["ReadWriteOnce"]
+    access_modes                     = ["ReadWriteOnce"]
     persistent_volume_reclaim_policy = "Delete"
-    storage_class_name = "gp3"
+    storage_class_name               = "gp3"
     persistent_volume_source {
       csi {
-        driver = "efs.csi.aws.com"
+        driver        = "efs.csi.aws.com"
         volume_handle = aws_efs_file_system.wordpress_mysql_efs.id
       }
     }
@@ -77,7 +77,7 @@ resource "aws_efs_access_point" "wordpress_efs_ap" {
 }
 
 resource "aws_efs_mount_target" "wordpress_efs_target" {
-  count = length(data.terraform_remote_state.eks.outputs.private_subnet_ids)
+  count          = length(data.terraform_remote_state.eks.outputs.private_subnet_ids)
   file_system_id = aws_efs_file_system.wordpress_efs.id
   subnet_id      = data.terraform_remote_state.eks.outputs.private_subnet_ids[count.index]
 }
@@ -90,12 +90,12 @@ resource "kubernetes_persistent_volume" "wordpress_pv" {
     capacity = {
       storage = "2Gi"
     }
-    access_modes = ["ReadWriteMany"]
+    access_modes                     = ["ReadWriteMany"]
     persistent_volume_reclaim_policy = "Delete"
-    storage_class_name = "gp3"
+    storage_class_name               = "gp3"
     persistent_volume_source {
       csi {
-        driver = "efs.csi.aws.com"
+        driver        = "efs.csi.aws.com"
         volume_handle = aws_efs_file_system.wordpress_efs.id
       }
     }
@@ -116,7 +116,7 @@ resource "kubernetes_persistent_volume_claim" "wordpress" {
         storage = "2Gi"
       }
     }
-    volume_name = kubernetes_persistent_volume.wordpress_pv.metadata[0].name
+    volume_name        = kubernetes_persistent_volume.wordpress_pv.metadata[0].name
     storage_class_name = "gp3"
   }
 }
@@ -145,9 +145,9 @@ resource "kubernetes_service" "wordpress-php-fpm" {
 resource "aws_vpc_security_group_ingress_rule" "wordpress-php-fpm" {
   security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
 
-  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  cidr_ipv4   = data.terraform_remote_state.eks.outputs.vpc_cidr
   ip_protocol = "tcp"
-  from_port = "9000"
+  from_port   = "9000"
   to_port     = "9000"
 }
 
@@ -155,7 +155,7 @@ resource "kubernetes_deployment" "wordpress-php-fpm" {
   metadata {
     name = "wordpress-php-fpm"
     labels = {
-      app = "wordpress"
+      app  = "wordpress"
       tier = "php-fpm"
     }
   }
@@ -181,7 +181,7 @@ resource "kubernetes_deployment" "wordpress-php-fpm" {
           name  = "php-fpm"
 
           env {
-            name = "WORDPRESS_DB_HOST"
+            name  = "WORDPRESS_DB_HOST"
             value = "wordpress-mysql"
           }
           env {
@@ -269,18 +269,18 @@ resource "kubernetes_service" "wordpress-nginx" {
 resource "aws_vpc_security_group_ingress_rule" "wordpress-nginx" {
   security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
 
-  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  cidr_ipv4   = data.terraform_remote_state.eks.outputs.vpc_cidr
   ip_protocol = "tcp"
-  from_port = "8080"
+  from_port   = "8080"
   to_port     = "8080"
 }
 
 resource "aws_vpc_security_group_egress_rule" "wordpress-nginx" {
   security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
 
-  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  cidr_ipv4   = data.terraform_remote_state.eks.outputs.vpc_cidr
   ip_protocol = "tcp"
-  from_port = "8080"
+  from_port   = "8080"
   to_port     = "8080"
 }
 
@@ -288,7 +288,7 @@ resource "kubernetes_deployment" "wordpress-nginx" {
   metadata {
     name = "wordpress-nginx"
     labels = {
-      app = "wordpress"
+      app  = "wordpress"
       tier = "nginx"
     }
   }
@@ -321,7 +321,7 @@ resource "kubernetes_deployment" "wordpress-nginx" {
           volume_mount {
             name       = "wordpress-persistent-storage"
             mount_path = "/var/www/html"
-            sub_path = "data"
+            sub_path   = "data"
           }
           volume_mount {
             name       = "wordpress-nginx-vhost-config"
@@ -372,9 +372,9 @@ resource "kubernetes_service" "mysql" {
 resource "aws_vpc_security_group_ingress_rule" "wordpress-mysql" {
   security_group_id = data.terraform_remote_state.eks.outputs.eks_vpc_default_security_group_id
 
-  cidr_ipv4 = data.terraform_remote_state.eks.outputs.vpc_cidr
+  cidr_ipv4   = data.terraform_remote_state.eks.outputs.vpc_cidr
   ip_protocol = "tcp"
-  from_port = "3306"
+  from_port   = "3306"
   to_port     = "3306"
 }
 
@@ -392,7 +392,7 @@ resource "kubernetes_persistent_volume_claim" "mysql" {
         storage = "2Gi"
       }
     }
-    volume_name = kubernetes_persistent_volume.wordpress_mysql_pv.metadata[0].name
+    volume_name        = kubernetes_persistent_volume.wordpress_mysql_pv.metadata[0].name
     storage_class_name = "gp3"
   }
 }
@@ -426,7 +426,7 @@ resource "kubernetes_deployment" "mysql" {
   metadata {
     name = "wordpress-mysql"
     labels = {
-      app = "wordpress"
+      app  = "wordpress"
       tier = "mysql"
     }
   }

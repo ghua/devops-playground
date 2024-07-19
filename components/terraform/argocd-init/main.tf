@@ -46,10 +46,10 @@ resource "kubernetes_ingress_v1" "argocd" {
   metadata {
     name = "argocd"
     annotations = {
-      "kubernetes.io/ingress.class"           = "alb"
-      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type" = "ip"
-      "alb.ingress.kubernetes.io/certificate-arn" = aws_acm_certificate.argocd.arn
+      "kubernetes.io/ingress.class"                    = "alb"
+      "alb.ingress.kubernetes.io/scheme"               = "internet-facing"
+      "alb.ingress.kubernetes.io/target-type"          = "ip"
+      "alb.ingress.kubernetes.io/certificate-arn"      = aws_acm_certificate.argocd.arn
       "alb.ingress.kubernetes.io/healthcheck-protocol" = "HTTP"
     }
   }
@@ -84,7 +84,7 @@ resource "kubernetes_ingress_v1" "argocd" {
 }
 
 resource "helm_release" "argocd" {
-  name       = "argocd"
+  name      = "argocd"
   namespace = "default"
 
   repository = "https://argoproj.github.io/argo-helm"
@@ -95,7 +95,7 @@ resource "helm_release" "argocd" {
     value = tls_self_signed_cert.argocd.subject[0].common_name
   }
   set {
-    name = "configs.params.server\\.insecure"
+    name  = "configs.params.server\\.insecure"
     value = true
   }
 }

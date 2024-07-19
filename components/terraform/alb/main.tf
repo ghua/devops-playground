@@ -24,7 +24,7 @@ data "terraform_remote_state" "eks" {
 }
 
 module "aws_load_balancer_controller_irsa_role" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
 
   role_name = "aws-load-balancer-controller"
 
@@ -49,12 +49,12 @@ resource "aws_iam_policy" "add_tags_to_elb_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        "Action": [
+        "Action" : [
           "elasticloadbalancing:RemoveTags",
           "elasticloadbalancing:AddTags"
         ],
-        "Effect": "Allow",
-        "Resource": [
+        "Effect" : "Allow",
+        "Resource" : [
           "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
           "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
           "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
@@ -75,7 +75,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-#   version    = "1.4.4"
+  #   version    = "1.4.4"
 
   set {
     name  = "replicaCount"

@@ -14,6 +14,6 @@ output "mysql_root_password" {
 }
 
 output "mysql_wp_password" {
-  value = random_password.mysql-wp-password
+  value     = random_password.mysql-wp-password
   sensitive = true
 }
