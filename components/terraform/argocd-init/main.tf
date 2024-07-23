@@ -44,7 +44,8 @@ resource "aws_acm_certificate" "argocd" {
 resource "kubernetes_ingress_v1" "argocd" {
   wait_for_load_balancer = true
   metadata {
-    name = "argocd"
+    name      = "argocd"
+    namespace = "argo"
     annotations = {
       "kubernetes.io/ingress.class"                    = "alb"
       "alb.ingress.kubernetes.io/scheme"               = "internet-facing"
@@ -83,9 +84,15 @@ resource "kubernetes_ingress_v1" "argocd" {
   }
 }
 
+resource "kubernetes_namespace_v1" "argo" {
+  metadata {
+    name = "argo"
+  }
+}
+
 resource "helm_release" "argocd" {
   name      = "argocd"
-  namespace = "default"
+  namespace = "argo"
 
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
@@ -97,5 +104,12 @@ resource "helm_release" "argocd" {
   set {
     name  = "configs.params.server\\.insecure"
     value = true
+  }
+}
+
+data "kubernetes_secret_v1" "argocd-init" {
+  metadata {
+    name      = "${helm_release.argocd.name}-initial-admin-secret"
+    namespace = "argo"
   }
 }
