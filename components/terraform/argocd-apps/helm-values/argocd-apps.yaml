@@ -1,0 +1,17 @@
+projects:
+  - name: ${cluster_id}
+    namespace: argo
+    additionalLabels: {}
+    additionalAnnotations: {}
+#    finalizers:
+#      - resources-finalizer.argocd.argoproj.io
+    description: Managed by Terraform
+    sourceRepos:
+      - "*"
+    destinations:
+      - namespace: "*"
+        server: https://kubernetes.default.svc
+        name: in-cluster
+    clusterResourceWhitelist:
+      - group: "*"
+        kind: "*"

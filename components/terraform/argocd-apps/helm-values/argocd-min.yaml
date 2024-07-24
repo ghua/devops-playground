@@ -1,0 +1,6 @@
+configs:
+  params:
+    "server.insecure": true
+
+global:
+  domain: ${domain_name}
